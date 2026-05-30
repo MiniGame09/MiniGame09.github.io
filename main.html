@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>iOS 18 Simulator</title>
+    <style>
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+        }
+
+        /* ===== CADRE ===== */
+        .phone-frame {
+            aspect-ratio: 393 / 852;
+            width: min(100vw, 430px, calc((100dvh - 12px) * 393 / 852));
+            border-radius: clamp(28px, 12vw, 45px);
+            overflow: hidden;
+            position: relative;
+            border: 4px solid rgb(241, 242, 245);
+            box-shadow:
+                0 0 0 0.5px rgba(255, 255, 255, 0.04),
+                0 30px 90px -15px rgba(0, 0, 0, 0.7),
+                0 0 100px -25px rgba(30, 80, 160, 0.12);
+        }
+
+        .phone-screen {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+            border-radius: inherit;
+        }
+
+        /* ===== WALLPAPER ===== */
+        .wallpaper {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            background:
+                radial-gradient(ellipse 80% 50% at 50% 25%, rgba(60, 130, 220, 0.45) 0%, transparent 70%),
+                radial-gradient(ellipse 60% 40% at 30% 70%, rgba(30, 80, 180, 0.25) 0%, transparent 60%),
+                linear-gradient(175deg, rgba(210, 128, 7, 0.6) 0%, rgba(0, 0, 0, 0.6) 35%, rgba(72, 71, 55, 0.6) 65%, rgba(249, 165, 10, 0.6) 100%);
+        }
+
+        .wallpaper-img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: -1;
+        }
+
+        .wallpaper::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at 50% 40%, transparent 30%, rgba(0, 0, 0, 0.35) 100%);
+            pointer-events: none;
+        }
+
+        /* ===== BARRE D'ÉTAT ===== */
+        .status-bar {
+            position: absolute;
+            top: 1%;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 7.5% 0;
+            height: 35px;
+            color: #fff;
+            pointer-events: none;
+        }
+
+        .status-time {
+            font-size: clamp(12px, 4.3vw, 17px);
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            line-height: 1;
+            min-width: 3.2em;
+        }
+
+        /* ===== DYNAMIC ISLAND ===== */
+        .dynamic-island {
+            position: absolute;
+            top: 13px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 32%;
+            aspect-ratio: 3.4 / 1;
+            background: #000;
+            border-radius: 100px;
+            z-index: 110;
+            cursor: pointer;
+            transition:
+                width 0.5s cubic-bezier(0.32, 0.72, 0, 1),
+                aspect-ratio 0.5s cubic-bezier(0.32, 0.72, 0, 1),
+                border-radius 0.5s cubic-bezier(0.32, 0.72, 0, 1),
+                box-shadow 0.5s ease;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 0 0 0px rgba(255, 255, 255, 0.04);
+        }
+        
+        .di-camera {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 10%;
+            height: 40%;
+            border-radius: 50%;
+            background: radial-gradient(circle at 45% 40%, #181830 0%, #0c0c18 55%, #060610 100%);
+            box-shadow:
+                inset 0 0 1px rgba(255, 255, 255, 0.05),
+                0 0 2px rgba(0, 0, 0, 0.4);
+            pointer-events: none;
+            transition: opacity 0.3s ease, width 0.3s ease;
+        }
+
+        .dynamic-island:active {
+            width: 36%;
+            aspect-ratio: 4.5 / 1;
+        }
+
+        .dynamic-island.expanded {
+            width: 52%;
+            aspect-ratio: 5.5 / 1;
+            border-radius: 34px;
+            box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.06);
+        }
+
+        .dynamic-island.expanded .di-camera {
+            opacity: 1;
+            width: 10%;
+            height: 40%;
+            right: 12%;
+        }
+
+        /* ===== CONTENU HOME ===== */
+        .home-content {
+            position: relative;
+            z-index: 5;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100%;
+            padding-top: 65px;
+            padding-bottom: 4px; /* Réduit pour laisser la main à l'indicateur du bas */
+        }
+
+        /* ===== GRILLE D'ICÔNES ===== */
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: clamp(10px, 3.5vh, 22px);
+            padding: 10px 7% 0;
+            flex: 1;
+            align-content: start;
+        }
+
+        .icon-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .icon-placeholder {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 22.5%;
+            background: rgba(160, 175, 195, 0.1);
+            border: 1px solid rgba(160, 175, 195, 0.12);
+            cursor: pointer;
+            transition:
+                transform 0.18s cubic-bezier(0.32, 0.72, 0, 1),
+                background 0.18s ease,
+                border-color 0.18s ease,
+                opacity 0.35s ease;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .icon-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: inherit;
+            pointer-events: none;
+        }
+
+        .icon-placeholder::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background: linear-gradient(
+                145deg,
+                rgba(255, 255, 255, 0.06) 0%,
+                rgba(255, 255, 255, 0.015) 30%,
+                transparent 55%
+            );
+            pointer-events: none;
+        }
+
+        @media (pointer: fine) {
+            .icon-placeholder:hover {
+                background: rgba(160, 175, 195, 0.16);
+                border-color: rgba(160, 175, 195, 0.2);
+            }
+        }
+
+        .icon-placeholder:active {
+            transform: scale(0.82);
+            background: rgba(160, 175, 195, 0.22);
+            border-color: rgba(160, 175, 195, 0.28);
+        }
+
+        .icon-placeholder.hidden-for-morph {
+            opacity: 0;
+            transform: scale(0.8);
+            pointer-events: none;
+        }
+
+        .icon-label-space {
+            width: 100%;
+            height: clamp(6px, 1.5vh, 12px);
+        }
+
+        /* ===== PAGE DOTS ===== */
+        .page-dots {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 0;
+            flex-shrink: 0;
+        }
+
+        .page-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.25);
+            transition: background 0.3s ease, transform 0.3s ease;
+        }
+
+        .page-dot.active {
+            background: rgba(255, 255, 255, 0.92);
+            transform: scale(1.1);
+        }
+        
+        /* ===== DOCK ===== */
+        .dock {
+            margin: 0 16px;
+            padding: 14px;
+            background: rgba(140, 160, 190, 0.12);
+            backdrop-filter: blur(50px) saturate(120%);
+            -webkit-backdrop-filter: blur(50px) saturate(120%);
+            border-radius: 27px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: clamp(10px, 4%, 20px);
+            flex-shrink: 0;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* ===== BARRE DE NAVIGATION (HOME INDICATOR) ===== */
+        .home-indicator {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 28px; /* Crée l'espace parfait sous le dock */
+            flex-shrink: 0;
+        }
+
+        .home-indicator-bar {
+            width: 35%;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 100px;
+        }
+
+        /* ===== MORPH OVERLAY ===== */
+        .morph-overlay {
+            position: absolute;
+            z-index: 90;
+            background: #1c1c1e;
+            display: none;
+            overflow: hidden;
+            pointer-events: auto;
+            will-change: width, height, left, top, border-radius;
+        }
+
+        .morph-overlay.animating {
+            transition:
+                width 0.55s cubic-bezier(0.28, 0.84, 0.42, 1),
+                height 0.55s cubic-bezier(0.28, 0.84, 0.42, 1),
+                left 0.55s cubic-bezier(0.28, 0.84, 0.42, 1),
+                top 0.55s cubic-bezier(0.28, 0.84, 0.42, 1),
+                border-radius 0.55s cubic-bezier(0.28, 0.84, 0.42, 1);
+        }
+
+        .morph-status {
+            position: absolute;
+            top: 1%;
+            left: 0;
+            right: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 7.5% 0;
+            height: 39px;
+            color: #fff;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .morph-overlay.app-open .morph-status { opacity: 1; transition-delay: 0.25s; }
+        .morph-overlay.app-closing .morph-status { opacity: 0; transition-delay: 0s; transition-duration: 0.02s; }
+
+        .morph-home {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            padding: 8px 0 14px;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+            cursor: pointer;
+            z-index: 2;
+        }
+
+        .morph-overlay.app-open .morph-home { opacity: 1; transition-delay: 0.35s; }
+        .morph-overlay.app-closing .morph-home { opacity: 0; transition-delay: 0s; transition-duration: 0.12s; }
+
+        .morph-home-bar {
+            width: 36%;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.45);
+            border-radius: 100px;
+        }
+
+        .morph-glow {
+            position: absolute;
+            width: 60%;
+            height: 40%;
+            top: 30%;
+            left: 20%;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0;
+            background: radial-gradient(ellipse, rgba(60, 120, 200, 0.06), transparent 70%);
+            transition: opacity 0.6s ease 0.4s;
+            pointer-events: none;
+        }
+
+        .morph-overlay.app-open .morph-glow { opacity: 1; }
+        .morph-swipe-zone { position: absolute; bottom: 0; left: 0; right: 0; height: 35%; z-index: 3; }
+
+        @media (prefers-reduced-motion: reduce) {
+            .morph-overlay.animating { transition-duration: 0.05s !important; }
+            .icon-placeholder { transition-duration: 0.05s !important; }
+            .dynamic-island { transition-duration: 0.05s !important; }
+            .page-dot { transition-duration: 0.05s !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="phone-frame">
+    <div class="phone-screen" id="phoneScreen">
+
+        <div class="wallpaper" aria-hidden="true">
+            <img src="fond-ecran.jpeg" class="wallpaper-img" alt="Fond d'écran">
+        </div>
+
+        <div class="dynamic-island" id="dynamicIsland" role="button" aria-label="Dynamic Island">
+            <div class="di-camera"></div>
+        </div>
+
+        <header class="status-bar">
+            <span class="status-time" id="statusTime" aria-live="polite">9:41</span>
+            <div class="status-icons" aria-hidden="true">
+                <svg width="18" height="12" viewBox="0 0 18 12" fill="none">
+                    <rect x="0" y="9" width="3" height="3" rx="0.7" fill="white"/>
+                    <rect x="5" y="6" width="3" height="6" rx="0.7" fill="white"/>
+                    <rect x="10" y="3" width="3" height="9" rx="0.7" fill="white"/>
+                    <rect x="15" y="0" width="3" height="12" rx="0.7" fill="white"/>
+                </svg>
+                <svg width="27" height="13" viewBox="0 0 27 13" fill="none">
+                    <rect x="0.5" y="0.5" width="22" height="12" rx="3" stroke="white" stroke-opacity="0.35" stroke-width="1"/>
+                    <rect x="23.5" y="3.5" width="2.5" height="6" rx="1" fill="white" fill-opacity="0.35"/>
+                    <rect x="2" y="2" width="19" height="9" rx="1.5" fill="white"/>
+                </svg>
+            </div>
+        </header>
+
+        <main class="home-content">
+            <div class="icon-grid" id="iconGrid" role="grid" aria-label="Applications"></div>
+            <nav class="page-dots" aria-label="Pages d'écran d'accueil">
+                <div class="page-dot active" aria-current="page"></div>
+                <div class="page-dot"></div>
+                <div class="page-dot"></div>
+            </nav>
+            <div class="dock" id="dock" role="grid" aria-label="Dock"></div>
+            
+            <div class="home-indicator" aria-hidden="true">
+                <div class="home-indicator-bar"></div>
+            </div>
+        </main>
+
+        <div class="morph-overlay" id="morphOverlay" aria-hidden="true">
+            <div class="morph-status">
+                <span class="status-time" id="morphTime">9:41</span>
+                <div class="status-icons">
+                    <svg width="18" height="12" viewBox="0 0 18 12" fill="none">
+                        <rect x="0" y="9" width="3" height="3" rx="0.7" fill="white"/>
+                        <rect x="5" y="6" width="3" height="6" rx="0.7" fill="white"/>
+                        <rect x="10" y="3" width="3" height="9" rx="0.7" fill="white"/>
+                        <rect x="15" y="0" width="3" height="12" rx="0.7" fill="white"/>
+                    </svg>
+                    <svg width="27" height="13" viewBox="0 0 27 13" fill="none">
+                        <rect x="0.5" y="0.5" width="22" height="12" rx="3" stroke="white" stroke-opacity="0.35" stroke-width="1"/>
+                        <rect x="23.5" y="3.5" width="2.5" height="6" rx="1" fill="white" fill-opacity="0.35"/>
+                        <rect x="2" y="2" width="19" height="9" rx="1.5" fill="white"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="morph-glow"></div>
+            <div class="morph-swipe-zone" id="morphSwipeZone"></div>
+            <div class="morph-home" id="morphHome">
+                <div class="morph-home-bar"></div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    var gridImages = [
+        "facetime.jpeg",   
+        "https://picsum.photos/id/10/120",  
+        "https://picsum.photos/id/20/120",  
+        "https://picsum.photos/id/30/120",  
+        "https://picsum.photos/id/40/120",  
+        "https://picsum.photos/id/50/120",  
+        "https://picsum.photos/id/60/120",  
+        "https://picsum.photos/id/70/120",  
+        "https://picsum.photos/id/80/120",  
+        "https://picsum.photos/id/90/120",  
+        "https://picsum.photos/id/100/120", 
+        "https://picsum.photos/id/110/120", 
+        "https://picsum.photos/id/120/120", 
+        "https://picsum.photos/id/130/120", 
+        "https://picsum.photos/id/140/120", 
+        "setting.jpeg"  
+    ];
+
+    var dockImages = [
+        "telephone.jpeg", 
+        "safari.jpeg", 
+        "message.jpeg", 
+        "musique.jpeg"  
+    ];
+
+    var defaultIconFallback = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100' height='100' fill='%233a3a3c'/></svg>";
+
+    var phoneScreen    = document.getElementById('phoneScreen');
+    var iconGrid       = document.getElementById('iconGrid');
+    var dock           = document.getElementById('dock');
+    var morphOverlay   = document.getElementById('morphOverlay');
+    var dynamicIsland  = document.getElementById('dynamicIsland');
+    var statusTime     = document.getElementById('statusTime');
+    var morphTime      = document.getElementById('morphTime');
+    var morphHome      = document.getElementById('morphHome');
+    var morphSwipeZone = document.getElementById('morphSwipeZone');
+
+    var isAppOpen     = false;
+    var isAnimating   = false;
+    var currentIcon   = null;
+    var iconRectCache = null;
+    var diTimeout     = null;
+
+    function getFrameRadius() {
+        return parseFloat(getComputedStyle(phoneScreen).borderRadius) || 44;
+    }
+
+    function updateClock() {
+        var now = new Date();
+        var t = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+        statusTime.textContent = t;
+        morphTime.textContent  = t;
+    }
+    updateClock();
+    setInterval(updateClock, 10000);
+
+    function createIconCell(index, inDock) {
+        var cell = document.createElement('div');
+        cell.className = 'icon-cell';
+        cell.setAttribute('role', 'gridcell');
+
+        var icon = document.createElement('div');
+        icon.className = 'icon-placeholder';
+        icon.setAttribute('role', 'button');
+        icon.setAttribute('tabindex', '0');
+        icon.dataset.idx = inDock ? 'd' + index : '' + index;
+        
+        var img = document.createElement('img');
+        img.className = 'icon-img';
+        img.alt = '';
+        
+        if (inDock) {
+            img.src = dockImages[index] || defaultIconFallback;
+        } else {
+            img.src = gridImages[index] || defaultIconFallback;
+        }
+        
+        icon.appendChild(img);
+
+        icon.addEventListener('click', function (e) {
+            e.stopPropagation();
+            openApp(icon);
+        });
+        icon.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                openApp(icon);
+            }
+        });
+
+        cell.appendChild(icon);
+
+        if (!inDock) {
+            var spacer = document.createElement('div');
+            spacer.className = 'icon-label-space';
+            cell.appendChild(spacer);
+        }
+
+        return cell;
+    }
+
+    for (var i = 0; i < 16; i++) {
+        iconGrid.appendChild(createIconCell(i, false));
+    }
+
+    for (var j = 0; j < 4; j++) {
+        dock.appendChild(createIconCell(j, true));
+    }
+
+    function openApp(iconEl) {
+        if (isAnimating || isAppOpen) return;
+        isAnimating = true;
+        currentIcon = iconEl;
+
+        var sRect = phoneScreen.getBoundingClientRect();
+        var iRect = iconEl.getBoundingClientRect();
+
+        var x = iRect.left  - sRect.left;
+        var y = iRect.top   - sRect.top;
+        var w = iRect.width;
+        var h = iRect.height;
+        var iconRadius = parseFloat(getComputedStyle(iconEl).borderRadius) || (w * 0.225);
+        var frameRadius = getFrameRadius();
+
+        iconEl.classList.add('hidden-for-morph');
+
+        morphOverlay.className = 'morph-overlay';
+        morphOverlay.style.cssText =
+            'display:block;' +
+            'width:'  + w + 'px;' +
+            'height:' + h + 'px;' +
+            'left:'   + x + 'px;' +
+            'top:'    + y + 'px;' +
+            'border-radius:' + iconRadius + 'px;' +
+            'opacity:1;';
+
+        void morphOverlay.offsetWidth;
+
+        morphOverlay.classList.add('animating');
+        morphOverlay.style.width  = sRect.width  + 'px';
+        morphOverlay.style.height = sRect.height + 'px';
+        morphOverlay.style.left   = '0px';
+        morphOverlay.style.top    = '0px';
+        morphOverlay.style.borderRadius = frameRadius + 'px';
+
+        iconRectCache = { x: x, y: y, w: w, h: h, radius: iconRadius };
+        isAppOpen = true;
+
+        setTimeout(function () {
+            morphOverlay.classList.add('app-open');
+            isAnimating = false;
+        }, 480);
+    }
+
+    function closeApp() {
+        if (isAnimating || !isAppOpen) return;
+        isAnimating = true;
+
+        if (currentIcon) {
+            var sR = phoneScreen.getBoundingClientRect();
+            var iR = currentIcon.getBoundingClientRect();
+            iconRectCache = {
+                x:      iR.left  - sR.left,
+                y:      iR.top   - sR.top,
+                w:      iR.width,
+                h:      iR.height,
+                radius: parseFloat(getComputedStyle(currentIcon).borderRadius) || (iR.width * 0.225)
+            };
+        }
+
+        morphOverlay.classList.remove('app-open');
+        morphOverlay.classList.add('app-closing');
+
+        morphOverlay.style.width        = iconRectCache.w + 'px';
+        morphOverlay.style.height       = iconRectCache.h + 'px';
+        morphOverlay.style.left         = iconRectCache.x + 'px';
+        morphOverlay.style.top          = iconRectCache.y + 'px';
+        morphOverlay.style.borderRadius = iconRectCache.radius + 'px';
+
+        isAppOpen = false;
+
+        setTimeout(function () {
+            morphOverlay.style.display = 'none';
+            morphOverlay.className = 'morph-overlay';
+            morphOverlay.style.cssText = 'display:none;';
+
+            if (currentIcon) {
+                currentIcon.classList.remove('hidden-for-morph');
+                currentIcon = null;
+            }
+            isAnimating = false;
+        }, 580);
+    }
+
+    morphOverlay.addEventListener('click', closeApp);
+    morphHome.addEventListener('click', function (e) {
+        e.stopPropagation();
+        closeApp();
+    });
+
+    var swipeStartY = 0;
+    var swipeActive = false;
+
+    morphSwipeZone.addEventListener('pointerdown', function (e) {
+        swipeStartY = e.clientY;
+        swipeActive = true;
+    });
+
+    morphOverlay.addEventListener('pointermove', function (e) {
+        if (!swipeActive) return;
+        e.preventDefault();
+    }, { passive: false });
+
+    morphOverlay.addEventListener('pointerup', function (e) {
+        if (!swipeActive) return;
+        swipeActive = false;
+        if (swipeStartY - e.clientY > 40) closeApp();
+        swipeStartY = 0;
+    });
+
+    dynamicIsland.addEventListener('click', function (e) {
+        e.stopPropagation();
+        clearTimeout(diTimeout);
+        if (dynamicIsland.classList.contains('expanded')) {
+            dynamicIsland.classList.remove('expanded');
+        } else {
+            dynamicIsland.classList.add('expanded');
+            diTimeout = setTimeout(function () {
+                dynamicIsland.classList.remove('expanded');
+            }, 1800);
+        }
+    });
+
+    var resizeTimer;
+    window.addEventListener('resize', function () {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function () {
+            if (isAppOpen && !isAnimating) closeApp();
+        }, 200);
+    });
+
+})();
+</script>
+
+</body>
+</html>
